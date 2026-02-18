@@ -833,7 +833,7 @@ def run_unified_simulation(intrinsic_params, driving_params, tmax=4.0, dt=0.001,
         pv_array = np.ones_like(t_array) * mu_pv
 
     # clip the e1_array, e2_array, and pv_array to be greater than 0
-    # this is to enforce that inputs are real firing rates.
+    # this is to enforce that inputs are real firing rates (relevant only in SEC/EEC sweeps).
     e1_array = np.clip(e1_array, 0, None)
     e2_array = np.clip(e2_array, 0, None)
     pv_array = np.clip(pv_array, 0, None)
