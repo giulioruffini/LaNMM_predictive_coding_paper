@@ -103,10 +103,7 @@ def get_intrinsic_params_extended(condition='healthy'):
          all excitatory synapses globally, forcing us to rewrite the code for more analytic control of the variable at all synapses, 
          whereas modifying $C$ allowed us to selectively target the specific glutamatergic inputs to the P1 population as intended. 
          We have added comments to the code repository to explicitly state this equivalence: scaling C for specific synapses 
-         is our implementation method for altering the effective synaptic gain for those specific pathways.
-
-
-      
+         is our implementation method for altering the effective synaptic gain for those specific pathways.      
       - 'MCI+Psy': Apply both the MCI and psychedelics modifications.
       - 'AD+Psy': Apply both the AD and psychedelics modifications.
     
