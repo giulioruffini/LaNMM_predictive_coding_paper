@@ -98,6 +98,15 @@ def get_intrinsic_params_extended(condition='healthy'):
       - 'MCI': Set C_vals[7] to 300 (instead of 550).
       - 'AD': Set C_vals[7] to 140 (instead of 550).
       - 'Psychedelics': Multiply C_vals for synapses 4, 5, 12, and 13 by 1.3846153846.
+         Note: here we modify the connectivity constants (Cs) rather than the global synaptic gain (A). 
+         This was done to achieve specificity in a simple manner (a hack, so to speak): modifying $A$ in the code would affect 
+         all excitatory synapses globally, forcing us to rewrite the code for more analytic control of the variable at all synapses, 
+         whereas modifying $C$ allowed us to selectively target the specific glutamatergic inputs to the P1 population as intended. 
+         We have added comments to the code repository to explicitly state this equivalence: scaling C for specific synapses 
+         is our implementation method for altering the effective synaptic gain for those specific pathways.
+
+
+      
       - 'MCI+Psy': Apply both the MCI and psychedelics modifications.
       - 'AD+Psy': Apply both the AD and psychedelics modifications.
     
