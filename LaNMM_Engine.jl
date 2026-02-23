@@ -1,6 +1,26 @@
 using DifferentialEquations
 using DataInterpolations
+using DSP
+using Random
 using Statistics
+if !isdefined(@__MODULE__, :IntrinsicConfig)
+    include("LaNMM_Types.jl")
+end
+if !isdefined(@__MODULE__, :get_column_parameters)
+    include("LaNMM_parameters.jl")
+end
+
+"""
+Public API (this file)
+----------------------
+- `LaNMMParams`
+- `build_intrinsic_params(; condition)`
+- `run_unified_simulation(intrinsic, job; ...)`
+- `run_unified_simulation(; ...)` (compatibility wrapper)
+
+Internal helpers:
+- `generate_am_signal`, `sigmoid_pop`, `lanmm_ode!`
+"""
 
 """
 Container for all parameters required by the ODE function.
@@ -27,67 +47,79 @@ Build intrinsic synaptic arrays for a given condition.
 Returns `(a_vals, A_vals, C_vals)` for synapses 1..14.
 """
 function build_intrinsic_params(; condition::String="healthy")
-    A_AMPA = 3.25
-    a_AMPA = 100.0
-    A_GABA_slow = -22.0
-    a_GABA_slow = 50.0
-    A_GABA_fast = -30.0
-    a_GABA_fast = 220.0
-
-    C_dict = Dict(
-        1 => 108.0, 2 => 33.7, 3 => 1.0, 4 => 135.0, 5 => 33.75, 6 => 70.0,
-        7 => 550.0, 8 => 1.0, 9 => 200.0, 10 => 100.0, 11 => 80.0, 12 => 200.0,
-        13 => 30.0, 14 => 1.0
-    )
-    syn_types = Dict(
-        1 => "AMPA", 2 => "GABA_slow", 3 => "AMPA", 4 => "AMPA", 5 => "AMPA",
-        6 => "AMPA", 7 => "GABA_fast", 8 => "AMPA", 9 => "AMPA", 10 => "GABA_fast",
-        11 => "AMPA", 12 => "AMPA", 13 => "AMPA", 14 => "AMPA"
-    )
-
-    cond = lowercase(condition)
-    if cond == "mci" || cond == "mci+psy"
-        C_dict[7] = 300.0
-    elseif cond == "ad" || cond == "ad+psy"
-        C_dict[7] = 140.0
-    end
-
-    if occursin("psy", cond) || cond == "psychedelics"
-        for syn in (1, 3, 11)
-            C_dict[syn] *= 1.3846153846
-        end
-    end
-
-    A_vals = zeros(Float64, 14)
-    a_vals = zeros(Float64, 14)
-    C_vals = zeros(Float64, 14)
-
-    for i in 1:14
-        C_vals[i] = C_dict[i]
-        if syn_types[i] == "AMPA"
-            A_vals[i] = A_AMPA
-            a_vals[i] = a_AMPA
-        elseif syn_types[i] == "GABA_slow"
-            A_vals[i] = A_GABA_slow
-            a_vals[i] = a_GABA_slow
-        else
-            A_vals[i] = A_GABA_fast
-            a_vals[i] = a_GABA_fast
-        end
-    end
-
-    return a_vals, A_vals, C_vals
+    col = get_column_parameters(condition=condition)
+    return build_synapse_parameter_arrays(col)
 end
 
 """
 Generate a simple amplitude-modulated input signal centered around `baseline`.
 """
-function generate_am_signal(t_array::AbstractVector, carrier_freq, carrier_amplitude, baseline)
-    envelope = carrier_amplitude .* (1.0 .+ 0.5 .* sin.(2π .* 10.0 .* t_array))
+function generate_am_signal(
+    t_array::AbstractVector,
+    carrier_freq,
+    carrier_amplitude,
+    baseline;
+    envelope_mod_freq_hz=10.0,
+    envelope_mod_depth=0.5
+)
+    envelope = carrier_amplitude .* (1.0 .+ envelope_mod_depth .* sin.(2π .* envelope_mod_freq_hz .* t_array))
     carrier = cos.(2π .* carrier_freq .* t_array)
     s = envelope .* carrier
     return (s .- mean(s)) .+ baseline
 end
+
+"""
+Generate multiscale drive by combining slow AR(1)-like drift and fast low-pass noise.
+"""
+function generate_multiscale_noise(
+    t_array::AbstractVector,
+    base_mean::Float64;
+    seed::Int=42,
+    fs::Float64=1000.0,
+    slow_std::Float64=400.0,
+    slow_alpha::Float64=0.99,
+    fast_std::Float64=5.0,
+    fast_cutoff::Float64=100.0,
+    floor_val::Float64=1e-4
+)
+    rng = MersenneTwister(seed)
+    n = length(t_array)
+    slow = zeros(Float64, n)
+    slow[1] = base_mean
+
+    for i in 2:n
+        step = randn(rng) * slow_std
+        slow[i] = slow_alpha * slow[i - 1] + (1.0 - slow_alpha) * (base_mean + step)
+    end
+
+    fast_white = randn(rng, n) .* fast_std
+    filt = digitalfilter(Lowpass(fast_cutoff), Butterworth(4); fs=fs)
+    fast = filtfilt(filt, fast_white)
+    return max.(slow .+ fast, floor_val)
+end
+
+generate_drive_signal(t_array, mu::Float64, cfg::AMDrivingConfig; fs::Float64, seed::Int) = generate_am_signal(
+    t_array,
+    cfg.carrier_freq_hz,
+    cfg.carrier_amplitude,
+    mu;
+    envelope_mod_freq_hz=cfg.envelope_mod_freq_hz,
+    envelope_mod_depth=cfg.envelope_mod_depth
+)
+
+generate_drive_signal(t_array, mu::Float64, cfg::ConstantDrivingConfig; fs::Float64, seed::Int) = fill(mu, length(t_array))
+
+generate_drive_signal(t_array, mu::Float64, cfg::MultiscaleDrivingConfig; fs::Float64, seed::Int) = generate_multiscale_noise(
+    t_array,
+    mu;
+    seed=seed + cfg.seed_offset,
+    fs=fs,
+    slow_std=cfg.slow_std,
+    slow_alpha=cfg.slow_alpha,
+    fast_std=cfg.fast_std,
+    fast_cutoff=cfg.fast_cutoff,
+    floor_val=cfg.floor_val
+)
 
 @inline sigmoid_pop(v, v0, p::LaNMMParams) = p.fmax / (1.0 + exp(p.r_slope * (v0 - v)))
 
@@ -130,36 +162,44 @@ function lanmm_ode!(du, u, p::LaNMMParams, t)
 end
 
 """
-Run the unified Julia simulation and return a Python-like result payload.
+Run the unified simulation for one `(mu_e1, mu_e2)` pair.
 
-Returned fields match the analyzer expectations:
-`t`, `vP1`, `vP2`, `vPV`, `e1_array`, `e2_array`, `pv_array`, `fs`, `u1..u14`.
+Inputs:
+- `intrinsic::IntrinsicConfig`: sigmoid and condition setup
+- `job::JobConfig`: simulation timing config (`tmax`, `dt`, `discard`)
+- keyword `mu_e1`, `mu_e2`, `mu_pv`: drive baselines
+- keyword `driving::DrivingConfig`: driving waveform defaults
+
+Output:
+- `SimulationResult`
 """
-function run_unified_simulation(;
-    condition::String="healthy",
+function run_unified_simulation(
+    intrinsic::IntrinsicConfig,
+    job::JobConfig;
     mu_e1::Float64=270.0,
     mu_e2::Float64=90.0,
     mu_pv::Float64=0.0,
-    v0_default::Float64=6.0,
-    v0_p2::Float64=1.0,
-    fmax::Float64=5.0,
-    r_slope::Float64=0.56,
-    tmax::Float64=4.0,
-    dt::Float64=0.001,
-    discard::Float64=1.0
+    driving::DrivingConfig=get_default_driving_model()
 )
-    t_array = collect(0:dt:tmax)
-    a_vals, A_vals, C_vals = build_intrinsic_params(condition=condition)
+    t_array = collect(0:job.dt:job.tmax)
+    fs = 1.0 / job.dt
+    a_vals, A_vals, C_vals = build_intrinsic_params(condition=intrinsic.condition)
 
-    e1_array = max.(0.0, generate_am_signal(t_array, 10.0, 400.0, mu_e1))
-    e2_array = max.(0.0, generate_am_signal(t_array, 40.0, 400.0, mu_e2))
-    pv_array = fill(mu_pv, length(t_array))
+    e1_array = generate_drive_signal(t_array, mu_e1, driving.e1; fs=fs, seed=driving.seed)
+    e2_array = generate_drive_signal(t_array, mu_e2, driving.e2; fs=fs, seed=driving.seed + 1)
+    pv_array = generate_drive_signal(t_array, mu_pv, driving.pv; fs=fs, seed=driving.seed + 2)
+
+    if driving.nonnegative_clipping
+        e1_array = max.(0.0, e1_array)
+        e2_array = max.(0.0, e2_array)
+        pv_array = max.(0.0, pv_array)
+    end
 
     p = LaNMMParams(
-        v0_default=v0_default,
-        v0_p2=v0_p2,
-        fmax=fmax,
-        r_slope=r_slope,
+        v0_default=intrinsic.v0_default,
+        v0_p2=intrinsic.v0_p2,
+        fmax=intrinsic.fmax,
+        r_slope=intrinsic.r_slope,
         a_vals=a_vals,
         A_vals=A_vals,
         C_vals=C_vals,
@@ -169,19 +209,19 @@ function run_unified_simulation(;
     )
 
     u0 = zeros(Float64, 28)
-    prob = ODEProblem(lanmm_ode!, u0, (0.0, tmax), p)
-    sol = solve(prob, Tsit5(), saveat=dt, reltol=1e-8, abstol=1e-8, maxiters=10^8)
+    prob = ODEProblem(lanmm_ode!, u0, (0.0, job.tmax), p)
+    sol = solve(prob, Tsit5(), saveat=job.dt, reltol=1e-8, abstol=1e-8, maxiters=10^8)
     if !SciMLBase.successful_retcode(sol)
         # Fallback to a stiff-capable solver for hard parameter combinations.
-        sol = solve(prob, Rosenbrock23(), saveat=dt, reltol=1e-8, abstol=1e-8, maxiters=10^8)
+        sol = solve(prob, Rosenbrock23(), saveat=job.dt, reltol=1e-8, abstol=1e-8, maxiters=10^8)
     end
     if !SciMLBase.successful_retcode(sol)
         error("ODE solve failed with retcode=$(sol.retcode). Try reducing dt/tmax or switching condition/drive settings.")
     end
 
-    idx_start = searchsortedfirst(sol.t, discard)
+    idx_start = searchsortedfirst(sol.t, job.discard)
     if idx_start > length(sol.t)
-        error("Discard time ($discard s) is beyond the simulated interval ending at $(sol.t[end]) s.")
+        error("Discard time ($(job.discard) s) is beyond the simulated interval ending at $(sol.t[end]) s.")
     end
     t_out = sol.t[idx_start:end]
     n = length(t_out)
@@ -204,7 +244,7 @@ function run_unified_simulation(;
     e2_out = [p.e2_interp(tt) for tt in t_out]
     pv_out = [p.pv_interp(tt) for tt in t_out]
 
-    return (
+    return SimulationResult(
         t=t_out,
         vP1=collect(vP1),
         vP2=collect(vP2),
@@ -212,7 +252,7 @@ function run_unified_simulation(;
         e1_array=e1_out,
         e2_array=e2_out,
         pv_array=pv_out,
-        fs=1.0 / dt,
+        fs=fs,
         u1=collect(u_syn(1)),
         u2=collect(u_syn(2)),
         u3=collect(u_syn(3)),
@@ -228,4 +268,31 @@ function run_unified_simulation(;
         u13=collect(u_syn(13)),
         u14=collect(u_syn(14))
     )
+end
+
+"""
+Compatibility wrapper using keyword-only configuration.
+"""
+function run_unified_simulation(;
+    condition::String="healthy",
+    mu_e1::Float64=270.0,
+    mu_e2::Float64=90.0,
+    mu_pv::Float64=0.0,
+    v0_default::Float64=6.0,
+    v0_p2::Float64=1.0,
+    fmax::Float64=5.0,
+    r_slope::Float64=0.56,
+    tmax::Float64=4.0,
+    dt::Float64=0.001,
+    discard::Float64=1.0
+)
+    intrinsic = IntrinsicConfig(
+        condition=condition,
+        v0_default=v0_default,
+        v0_p2=v0_p2,
+        fmax=fmax,
+        r_slope=r_slope
+    )
+    job = JobConfig(tmax=tmax, dt=dt, discard=discard)
+    return run_unified_simulation(intrinsic, job; mu_e1=mu_e1, mu_e2=mu_e2, mu_pv=mu_pv)
 end

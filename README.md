@@ -26,13 +26,26 @@ The LaNMM is also used in https://www.biorxiv.org/content/10.1101/2025.03.26.645
 
 The Julia code is split into:
 
-- `LaNMM_Engine.jl`: ODE model + simulation (`run_unified_simulation`).
-- `LaNMM_Analyzer.jl`: analysis and plotting helpers.
-- `run_job.jl`: end-to-end sweep runner and figure export.
+- `LaNMM_Types.jl`: typed configs and simulation result contract.
+- `LaNMM_parameters.jl`: intrinsic column constants + driving defaults.
+- `LaNMM_Engine.jl`: core ODE model + simulation (`run_unified_simulation`).
+- `LaNMM_Analyzer.jl`: analysis functions only (no plotting side effects).
+- `LaNMM_Plots.jl`: plotting functions only.
+- `LaNMM_Sweep.jl`: sweep orchestration/progress/output helpers.
+- `run_job.jl`: clean entry script to define typed parameters and execute.
+
+Default Julia driving setup:
+- `e1`: multiscale
+- `e2`: constant
+- `pv`: constant
 
 Run:
 
 `julia --threads auto run_job.jl`
+
+Detailed Julia architecture and API documentation:
+
+- `Readme_Julia_implemenation.md`
 
 Each run creates a timestamped output directory containing:
 

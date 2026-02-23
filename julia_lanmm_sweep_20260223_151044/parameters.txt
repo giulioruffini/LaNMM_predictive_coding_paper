@@ -1,3 +1,0 @@
-# Julia LaNMM sweep parameters
-intrinsic = Dict{String, Any}("v0_p2" => 1.0, "fmax" => 5.0, "v0_default" => 6.0, "r_slope" => 0.56, "condition" => "healthy")
-job = Dict{String, Any}("mu_p2_values" => [50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0], "tmax" => 10.0, "mu_p1_values" => [50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0], "alpha_band" => (8.0, 12.0), "gamma_band" => (30.0, 50.0), "dt" => 0.001, "job_title" => "julia_lanmm_sweep", "discard" => 1.0)
