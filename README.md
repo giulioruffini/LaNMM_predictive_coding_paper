@@ -21,3 +21,33 @@ The LaNMM is also used in https://www.biorxiv.org/content/10.1101/2025.03.26.645
 (Fast Interneuron Dysfunction in Laminar Neural Mass Model Reproduces Alzheimer’s Oscillatory Biomarkers, 2025)
 
 (and probably more to follow)
+
+## Julia workflow (parity with Python plots)
+
+The Julia code is split into:
+
+- `LaNMM_Engine.jl`: ODE model + simulation (`run_unified_simulation`).
+- `LaNMM_Analyzer.jl`: analysis and plotting helpers.
+- `run_job.jl`: end-to-end sweep runner and figure export.
+
+Run:
+
+`julia --threads auto run_job.jl`
+
+Each run creates a timestamped output directory containing:
+
+- `inputs.png`, `v.png`, `u_external.png`, `psd.png` (single-run diagnostics)
+- `couplings.png` (SEC/EEC heatmaps)
+- `power.png` (P1/P2 alpha/gamma band-power heatmaps)
+- `peix.png` (PEIX heatmaps)
+- `frequency_heatmaps.png` (alpha/gamma peak-frequency heatmaps)
+- `sweep_results.jls`, `analysis_results.jls`, and `parameters.txt`
+
+### Python-to-Julia function mapping
+
+- Python `run_unified_simulation` -> Julia `run_unified_simulation` (`LaNMM_Engine.jl`)
+- Python `plot_sim_results` -> Julia `plot_sim_results` (`LaNMM_Analyzer.jl`)
+- Python `analyze_sweep_couplings` / `plot_coupling_heatmaps` -> same names in Julia
+- Python `analyze_sweep_power` / `plot_power_heatmaps_bottom_cbar` -> same names in Julia
+- Python `sweep_peix` / `plot_peix_heatmaps` -> same names in Julia
+- Python `analyze_peak_frequencies` / `plot_frequency_heatmaps` -> same names in Julia
