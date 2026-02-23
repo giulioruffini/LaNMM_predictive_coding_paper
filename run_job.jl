@@ -19,11 +19,11 @@ const intrinsic_params = IntrinsicConfig(
 
 const job_params = JobConfig(
     job_title="julia_lanmm_sweep",
-    mu_p1_values=collect(50.0:20.0:400.0),
-    mu_p2_values=collect(50.0:20.0:400.0),
-    tmax=10.0,   # change to 300.0 for production sweeps
+    mu_p1_values=collect(50.0:5.0:400.0),
+    mu_p2_values=collect(50.0:5.0:400.0),
+    tmax=303.0,   # change to 300.0 for production sweeps
     dt=0.001,
-    discard=1.0,
+    discard=3.0,
     alpha_band=(8.0, 12.0),
     gamma_band=(30.0, 50.0),
     quiet_progress=false # true => fewer progress updates

@@ -49,7 +49,7 @@ v0_p2 = 1.0
 [metadata]
 format = "TOML"
 note = "Complete run snapshot for LaNMM Julia pipeline"
-saved_at = "2026-02-23T16:49:55"
+saved_at = "2026-02-23T19:40:31"
 
 [nominal_run_for_diagnostics]
 mu_e1 = 270.0
@@ -58,20 +58,20 @@ xlims_plot = [5, 10]
 
 [simulation]
 abstol = 1.0e-8
-discard_s = 1.0
+discard_s = 0.1
 dt_s = 0.001
 maxiters = 100000000
 reltol = 1.0e-8
 solver_fallback = "Rosenbrock23"
 solver_primary = "Tsit5"
-tmax_s = 10.0
+tmax_s = 1.5
 
 [sweep]
-job_title = "julia_lanmm_sweep"
-mu_p1_values = [50.0, 70.0, 90.0, 110.0, 130.0, 150.0, 170.0, 190.0, 210.0, 230.0, 250.0, 270.0, 290.0, 310.0, 330.0, 350.0, 370.0, 390.0]
-mu_p2_values = [50.0, 70.0, 90.0, 110.0, 130.0, 150.0, 170.0, 190.0, 210.0, 230.0, 250.0, 270.0, 290.0, 310.0, 330.0, 350.0, 370.0, 390.0]
-quiet_progress = false
-total_pairs = 324
+job_title = "mem_thread_test"
+mu_p1_values = [50.0, 60.0]
+mu_p2_values = [90.0, 100.0]
+quiet_progress = true
+total_pairs = 4
 
 [synapse_arrays_effective]
 A_vals = [3.25, -22.0, 3.25, 3.25, 3.25, 3.25, -30.0, 3.25, 3.25, -30.0, 3.25, 3.25, 3.25, 3.25]

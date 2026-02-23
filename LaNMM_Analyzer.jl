@@ -77,29 +77,39 @@ end
 Analyze S2E/E2E coupling over a sweep dictionary keyed by `(mu_p1, mu_p2)`.
 """
 function analyze_sweep_couplings(sweep_results; alpha_band=(8.0, 12.0), gamma_band=(30.0, 50.0))
-    out = Dict{Tuple{Float64,Float64},NamedTuple}()
-    for (key, result) in sweep_results
+    keys_vec = collect(keys(sweep_results))
+    vals = Vector{NamedTuple{(:r_s2e, :r_e2e),Tuple{Float64,Float64}}}(undef, length(keys_vec))
+
+    Threads.@threads for i in eachindex(keys_vec)
+        key = keys_vec[i]
+        result = sweep_results[key]
         r_s2e, r_e2e = compute_s2e_e2e(result; alpha_band=alpha_band, gamma_band=gamma_band)
-        out[key] = (r_s2e=r_s2e, r_e2e=r_e2e)
+        vals[i] = (r_s2e=r_s2e, r_e2e=r_e2e)
     end
-    return out
+
+    return Dict(keys_vec[i] => vals[i] for i in eachindex(keys_vec))
 end
 
 """
 Analyze alpha/gamma power over the sweep for P1 and P2.
 """
 function analyze_sweep_power(sweep_results; alpha_band=(8.0, 12.0), gamma_band=(30.0, 50.0), method=:bandpass_hilbert)
-    out = Dict{Tuple{Float64,Float64},NamedTuple}()
-    for (key, result) in sweep_results
+    keys_vec = collect(keys(sweep_results))
+    vals = Vector{NamedTuple{(:p1_alpha,:p1_gamma,:p2_alpha,:p2_gamma),Tuple{Float64,Float64,Float64,Float64}}}(undef, length(keys_vec))
+
+    Threads.@threads for i in eachindex(keys_vec)
+        key = keys_vec[i]
+        result = sweep_results[key]
         fs = result.fs
-        out[key] = (
+        vals[i] = (
             p1_alpha=compute_band_power(result.vP1, fs; freq_band=alpha_band, method=method),
             p1_gamma=compute_band_power(result.vP1, fs; freq_band=gamma_band, method=method),
             p2_alpha=compute_band_power(result.vP2, fs; freq_band=alpha_band, method=method),
             p2_gamma=compute_band_power(result.vP2, fs; freq_band=gamma_band, method=method)
         )
     end
-    return out
+
+    return Dict(keys_vec[i] => vals[i] for i in eachindex(keys_vec))
 end
 
 """
@@ -127,7 +137,12 @@ function analyze_peak_frequencies(sweep_results; fs=1000.0, alpha_band=(8.0, 12.
     alpha_peaks = zeros(length(m1_vals), length(m2_vals))
     gamma_peaks = zeros(length(m1_vals), length(m2_vals))
 
-    for (i, m1) in enumerate(m1_vals), (j, m2) in enumerate(m2_vals)
+    total = length(m1_vals) * length(m2_vals)
+    Threads.@threads for idx in 1:total
+        i = ((idx - 1) % length(m1_vals)) + 1
+        j = ((idx - 1) ÷ length(m1_vals)) + 1
+        m1 = m1_vals[i]
+        m2 = m2_vals[j]
         r = sweep_results[(m1, m2)]
         alpha_peaks[i, j] = compute_peak_frequency(r.vP1, fs, alpha_band)
         gamma_peaks[i, j] = compute_peak_frequency(r.vP2, fs, gamma_band)
@@ -145,11 +160,16 @@ compute_peix(x) = -sign(x) * (4.0 * exp(-x) / (1.0 + exp(-x))^2 - 1.0)
 Sweep PEIX values for P1 and P2 from sweep simulation outputs.
 """
 function sweep_peix(sweep_results; r_slope=0.56, v0_default=6.0, v0_p2=1.0)
-    out = Dict{Tuple{Float64,Float64},NamedTuple}()
-    for (key, result) in sweep_results
+    keys_vec = collect(keys(sweep_results))
+    vals = Vector{NamedTuple{(:peix_P1,:peix_P2),Tuple{Float64,Float64}}}(undef, length(keys_vec))
+
+    Threads.@threads for i in eachindex(keys_vec)
+        key = keys_vec[i]
+        result = sweep_results[key]
         x1 = r_slope * (mean(result.vP1) - v0_default)
         x2 = r_slope * (mean(result.vP2) - v0_p2)
-        out[key] = (peix_P1=compute_peix(x1), peix_P2=compute_peix(x2))
+        vals[i] = (peix_P1=compute_peix(x1), peix_P2=compute_peix(x2))
     end
-    return out
+
+    return Dict(keys_vec[i] => vals[i] for i in eachindex(keys_vec))
 end

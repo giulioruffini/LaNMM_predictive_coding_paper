@@ -247,56 +247,89 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig)
     quiet_progress = job.quiet_progress
     update_every = quiet_progress ? max(1, total_pairs ÷ 10) : max(1, total_pairs ÷ 200)
 
-    println("Running sweep for $(total_pairs) parameter pairs...")
-    sweep_results = Dict{Tuple{Float64,Float64},Any}()
-    done_pairs = 0
+    println("Running sweep for $(total_pairs) parameter pairs with $(Threads.nthreads()) threads...")
+    pairs = vec([(m1, m2) for m1 in m1_vals, m2 in m2_vals])
+    sweep_results = Dict{Tuple{Float64,Float64},SweepMetrics}()
+    done_counter = Threads.Atomic{Int}(0)
+    results_lock = ReentrantLock()
+    progress_lock = ReentrantLock()
     t0 = time()
 
-    for m1 in m1_vals, m2 in m2_vals
-        sweep_results[(m1, m2)] = run_unified_simulation(intrinsic, job; mu_e1=m1, mu_e2=m2)
-        done_pairs += 1
+    Threads.@threads for idx in eachindex(pairs)
+        m1, m2 = pairs[idx]
+        sim = run_unified_simulation(intrinsic, job; mu_e1=m1, mu_e2=m2)
+
+        # Compute all sweep outputs on-the-fly, then drop `sim` so
+        # time-series can be garbage collected.
+        r_s2e, r_e2e = compute_s2e_e2e(sim; alpha_band=job.alpha_band, gamma_band=job.gamma_band)
+        p1_alpha = compute_band_power(sim.vP1, sim.fs; freq_band=job.alpha_band, method=:bandpass_hilbert)
+        p1_gamma = compute_band_power(sim.vP1, sim.fs; freq_band=job.gamma_band, method=:bandpass_hilbert)
+        p2_alpha = compute_band_power(sim.vP2, sim.fs; freq_band=job.alpha_band, method=:bandpass_hilbert)
+        p2_gamma = compute_band_power(sim.vP2, sim.fs; freq_band=job.gamma_band, method=:bandpass_hilbert)
+        x1 = intrinsic.r_slope * (mean(sim.vP1) - intrinsic.v0_default)
+        x2 = intrinsic.r_slope * (mean(sim.vP2) - intrinsic.v0_p2)
+        peix_p1 = compute_peix(x1)
+        peix_p2 = compute_peix(x2)
+        alpha_peak = compute_peak_frequency(sim.vP1, sim.fs, job.alpha_band)
+        gamma_peak = compute_peak_frequency(sim.vP2, sim.fs, job.gamma_band)
+
+        metrics = SweepMetrics(
+            r_s2e=r_s2e,
+            r_e2e=r_e2e,
+            p1_alpha=p1_alpha,
+            p1_gamma=p1_gamma,
+            p2_alpha=p2_alpha,
+            p2_gamma=p2_gamma,
+            peix_P1=peix_p1,
+            peix_P2=peix_p2,
+            alpha_peak_hz=alpha_peak,
+            gamma_peak_hz=gamma_peak
+        )
+
+        lock(results_lock) do
+            sweep_results[(m1, m2)] = metrics
+        end
+
+        done_pairs = Threads.atomic_add!(done_counter, 1) + 1
         if done_pairs == 1 || done_pairs % update_every == 0 || done_pairs == total_pairs
-            _print_progress(done_pairs, total_pairs, t0; quiet=quiet_progress)
+            lock(progress_lock) do
+                _print_progress(done_pairs, total_pairs, t0; quiet=quiet_progress)
+            end
         end
     end
 
-    println("Computing analysis products...")
-    couplings = analyze_sweep_couplings(
-        sweep_results;
-        alpha_band=job.alpha_band,
-        gamma_band=job.gamma_band
-    )
-    power_results = analyze_sweep_power(
-        sweep_results;
-        alpha_band=job.alpha_band,
-        gamma_band=job.gamma_band,
-        method=:bandpass_hilbert
-    )
-    peix_results = sweep_peix(
-        sweep_results;
-        r_slope=intrinsic.r_slope,
-        v0_default=intrinsic.v0_default,
-        v0_p2=intrinsic.v0_p2
-    )
-    freq_data = analyze_peak_frequencies(sweep_results; fs=1.0 / job.dt)
-
     println("Saving plots...")
     plot_coupling_heatmaps(
-        couplings;
-        title_str="Couplings: $(job_title)",
+        sweep_results;
+        #title_str="Couplings: $(job_title)",
+        title_str="",
         save_path=joinpath(output_dir, "couplings.png")
     )
     plot_power_heatmaps_bottom_cbar(
-        power_results;
-        title_str="Band Power: $(job_title)",
+        sweep_results;
+        #title_str="Band Power: $(job_title)",
+        title_str="",
         save_path=joinpath(output_dir, "power.png"),
         log_scale=true
     )
     plot_peix_heatmaps(
-        peix_results;
-        title_str="PEIX: $(job_title)",
+        sweep_results;
+        #title_str="PEIX: $(job_title)",
+        title_str="",
         save_path=joinpath(output_dir, "peix.png")
     )
+    freq_data = let
+        m1 = sort(unique(first(k) for k in keys(sweep_results)))
+        m2 = sort(unique(last(k) for k in keys(sweep_results)))
+        alpha = zeros(length(m1), length(m2))
+        gamma = zeros(length(m1), length(m2))
+        for (i, x) in enumerate(m1), (j, y) in enumerate(m2)
+            metrics = sweep_results[(x, y)]
+            alpha[i, j] = metrics.alpha_peak_hz
+            gamma[i, j] = metrics.gamma_peak_hz
+        end
+        (alpha_peaks=alpha, gamma_peaks=gamma, m1_values=m1, m2_values=m2)
+    end
     plot_frequency_heatmaps(
         freq_data;
         save_path=joinpath(output_dir, "frequency_heatmaps.png")
@@ -306,7 +339,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig)
     serialize(joinpath(output_dir, "sweep_results.jls"), sweep_results)
     serialize(
         joinpath(output_dir, "analysis_results.jls"),
-        (couplings=couplings, power_results=power_results, peix_results=peix_results, freq_data=freq_data)
+        (metrics=sweep_results, freq_data=freq_data)
     )
 
     println("Job completed successfully. Outputs in: $output_dir")

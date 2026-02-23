@@ -102,18 +102,61 @@ function plot_sim_results(result::SimulationResult; save_dir::Union{Nothing,Stri
     return nothing
 end
 
-function plot_coupling_heatmaps(couplings; title_str="Couplings", save_path=nothing)
+function plot_coupling_heatmaps(couplings; title_str="", save_path=nothing)
     m1, m2, s2e = _matrix_from_sweep(couplings, :r_s2e)
     _, _, e2e = _matrix_from_sweep(couplings, :r_e2e)
 
-    # Replaced "P1 drive (Hz)" with proper LaTeX notation to match the paper
+    x_bounds = (minimum(m1), maximum(m1))
+    y_bounds = (minimum(m2), maximum(m2))
+
+    # Plot 1: SEC
     p1 = heatmap(m1, m2, s2e', color=:seismic, clims=(-0.7, 0.7),
-        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="SEC Coupling", aspect_ratio=:equal)
+        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="SEC Coupling", 
+        aspect_ratio=:equal, xlims=x_bounds, ylims=y_bounds, colorbar=false, widen=false)
+    scatter!(p1, [200], [90], color=:white, markersize=5, markerstrokecolor=:black, label="")
+    scatter!(p1, [270], [90], color=:black, markersize=5, markerstrokecolor=:black, label="")
+
+    # Plot 2: EEC
     p2 = heatmap(m1, m2, e2e', color=:seismic, clims=(-0.7, 0.7),
-        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="EEC Coupling", aspect_ratio=:equal)
+        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="EEC Coupling", 
+        aspect_ratio=:equal, xlims=x_bounds, ylims=y_bounds, colorbar=false, widen=false)
+    scatter!(p2, [200], [90], color=:white, markersize=5, markerstrokecolor=:white, label="")
+    scatter!(p2, [270], [90], color=:black, markersize=5, markerstrokecolor=:black, label="")
+
+    # --- The "Manual Horizontal Colorbar" Hack ---
+    cb_x = range(-0.7, 0.7, length=200)
+    cb_y = [0, 1]
+    cb_data = repeat(cb_x', 2, 1)
     
-    # Adjusted size and added extra bottom margin for the colorbar space
-    fig = plot(p1, p2, layout=(1, 2), size=(1100, 500), plot_title=title_str, bottom_margin=10mm)
+    p_cb = heatmap(cb_x, cb_y, cb_data, 
+        color=:seismic, clims=(-0.7, 0.7), colorbar=false, 
+        yticks=:none, framestyle=:box, 
+        xticks=([-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6], ["-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6"]),
+        xlabel="Correlation Coefficient",
+        margin=0mm, widen=false)
+
+    # --- Layout Magic ---
+    # Force the top row to take exactly 85% of the total vertical space.
+    # Make the colorbar span 60% of the horizontal space to balance the squares.
+   
+    # We added '0.03h' to explicitly force the colorbar to only be 3% of the total height
+    l = @layout [
+        grid(1, 2){0.85h}
+        _ a{0.6w, 0.1h} _
+    ]
+    
+  
+        # MATH FIX: 
+    # Changed total height from 550 to 480.
+    # 480 pixels total * 0.85 (layout height) = 408 pixels for the top row.
+    # Now the bounding box is 400x408 (basically a perfect square).
+    # Zero vertical slack = the title snaps directly onto the top axis spine!
+    plot_kwargs = title_str == "" ? 
+        (; layout=l, size=(800, 480), bottom_margin=5mm) :
+        (; layout=l, size=(800, 480), bottom_margin=5mm, plot_title=title_str)
+        
+        
+    fig = plot(p1, p2, p_cb; plot_kwargs...)
     
     if save_path !== nothing
         savefig(fig, save_path)
@@ -139,14 +182,14 @@ function plot_power_heatmaps_bottom_cbar(power_results; title_str="Band Power", 
     allv = vcat(vec(p1a), vec(p1g), vec(p2a), vec(p2g))
     vmin, vmax = minimum(allv), maximum(allv)
 
-    kw = (xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", color=:viridis, aspect_ratio=:equal, clims=(vmin, vmax))
+    kw = (xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", color=:viridis, aspect_ratio=:auto, clims=(vmin, vmax))
     h1 = heatmap(m1, m2, p2a'; title="P2 Alpha Power", kw...)
     h2 = heatmap(m1, m2, p2g'; title="P2 Gamma Power", kw...)
     h3 = heatmap(m1, m2, p1a'; title="P1 Alpha Power", kw...)
     h4 = heatmap(m1, m2, p1g'; title="P1 Gamma Power", kw...)
-    
-    fig = plot(h1, h2, h3, h4, layout=(2, 2), size=(1200, 1100), plot_title=title_str, bottom_margin=8mm)
-    
+
+    fig = plot(h1, h2, h3, h4, layout=(2, 2), size=(1200, 1000), bottom_margin=6mm)
+
     if save_path !== nothing
         savefig(fig, save_path)
     end
@@ -157,14 +200,14 @@ end
 function plot_peix_heatmaps(peix_results; title_str="PEIX", save_path=nothing)
     m1, m2, p1 = _matrix_from_sweep(peix_results, :peix_P1)
     _, _, p2 = _matrix_from_sweep(peix_results, :peix_P2)
-    
-    h1 = heatmap(m1, m2, p1', color=:jet, clims=(-1, 1), aspect_ratio=:equal,
+
+    h1 = heatmap(m1, m2, p1', color=:jet, clims=(-1, 1), aspect_ratio=:auto,
         xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="PEIX for P1")
-    h2 = heatmap(m1, m2, p2', color=:jet, clims=(-1, 1), aspect_ratio=:equal,
+    h2 = heatmap(m1, m2, p2', color=:jet, clims=(-1, 1), aspect_ratio=:auto,
         xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="PEIX for P2")
-        
-    fig = plot(h1, h2, layout=(1, 2), size=(1100, 500), plot_title=title_str, bottom_margin=8mm)
-    
+
+    fig = plot(h1, h2, layout=(1, 2), size=(1100, 420), bottom_margin=6mm)
+
     if save_path !== nothing
         savefig(fig, save_path)
     end
@@ -179,8 +222,8 @@ function plot_frequency_heatmaps(freq_data; save_path=nothing)
     h2 = heatmap(freq_data.m1_values, freq_data.m2_values, freq_data.gamma_peaks',
         color=:hot, clims=(30, 50), xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)",
         title="Peak Gamma Frequency in P2 (Hz)")
-        
-    fig = plot(h1, h2, layout=(1, 2), size=(1100, 500), bottom_margin=8mm)
+
+    fig = plot(h1, h2, layout=(1, 2), size=(1100, 420), bottom_margin=8mm)
     if save_path !== nothing
         savefig(fig, save_path)
     end

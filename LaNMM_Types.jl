@@ -6,6 +6,7 @@ Public API:
 - `JobConfig`
 - `AMDrivingConfig`, `ConstantDrivingConfig`, `DrivingConfig`
 - `SimulationResult`
+- `SweepMetrics`
 - `to_dict(...)` helpers for serialization/reporting
 """
 
@@ -86,6 +87,24 @@ Base.@kwdef struct SimulationResult
     u12::Vector{Float64}
     u13::Vector{Float64}
     u14::Vector{Float64}
+end
+
+"""
+Lightweight per-grid-point outputs for sweep runs.
+
+Stores only scalar metrics so raw time-series can be discarded immediately.
+"""
+Base.@kwdef struct SweepMetrics
+    r_s2e::Float64
+    r_e2e::Float64
+    p1_alpha::Float64
+    p1_gamma::Float64
+    p2_alpha::Float64
+    p2_gamma::Float64
+    peix_P1::Float64
+    peix_P2::Float64
+    alpha_peak_hz::Float64
+    gamma_peak_hz::Float64
 end
 
 to_dict(x::IntrinsicConfig) = Dict(
