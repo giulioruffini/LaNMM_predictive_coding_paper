@@ -1,5 +1,6 @@
 using DSP
 using Plots
+using Plots.PlotMeasures # Required for margin control
 
 """
 Plotting utilities for LaNMM Julia workflow.
@@ -12,6 +13,18 @@ Public API:
 - `plot_frequency_heatmaps`
 """
 
+# Apply a global publication-quality theme
+default(
+    fontfamily="Computer Modern", # Matches LaTeX standard font
+    dpi=300,                      # High resolution
+    titlefontsize=14,
+    guidefontsize=12,             # Axis labels
+    tickfontsize=10,
+    colorbar_titlefontsize=11,
+    margin=8mm,                   # Prevents cropping of labels
+    framestyle=:box               # Adds a clean bounding box
+)
+
 function _matrix_from_sweep(dict_like, field)
     m1_vals = sort(unique(first(k) for k in keys(dict_like)))
     m2_vals = sort(unique(last(k) for k in keys(dict_like)))
@@ -22,9 +35,6 @@ function _matrix_from_sweep(dict_like, field)
     return m1_vals, m2_vals, z
 end
 
-"""
-Plot a single simulation's diagnostics (inputs, voltages, external u, PSD).
-"""
 function plot_sim_results(result::SimulationResult; save_dir::Union{Nothing,String}=nothing, xlims=nothing)
     n = minimum((
         length(result.t), length(result.e1_array), length(result.e2_array), length(result.pv_array),
@@ -32,7 +42,7 @@ function plot_sim_results(result::SimulationResult; save_dir::Union{Nothing,Stri
         length(result.u3), length(result.u8), length(result.u14)
     ))
     if n < 4
-        error("Not enough samples to plot (n=$n).")
+        error("Not enough samples to plot (n=\$n).")
     end
     t = result.t[1:n]
     e1 = result.e1_array[1:n]
@@ -88,7 +98,7 @@ function plot_sim_results(result::SimulationResult; save_dir::Union{Nothing,Stri
         savefig(p_psd, joinpath(save_dir, "psd.png"))
     end
 
-    display(plot(p_inputs, p_v, p_uext, p_psd, layout=(4, 1), size=(1200, 1200)))
+    display(plot(p_inputs, p_v, p_uext, p_psd, layout=(4, 1), size=(1000, 1400)))
     return nothing
 end
 
@@ -96,11 +106,15 @@ function plot_coupling_heatmaps(couplings; title_str="Couplings", save_path=noth
     m1, m2, s2e = _matrix_from_sweep(couplings, :r_s2e)
     _, _, e2e = _matrix_from_sweep(couplings, :r_e2e)
 
+    # Replaced "P1 drive (Hz)" with proper LaTeX notation to match the paper
     p1 = heatmap(m1, m2, s2e', color=:seismic, clims=(-0.7, 0.7),
-        xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)", title="SEC Coupling", aspect_ratio=:equal)
+        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="SEC Coupling", aspect_ratio=:equal)
     p2 = heatmap(m1, m2, e2e', color=:seismic, clims=(-0.7, 0.7),
-        xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)", title="EEC Coupling", aspect_ratio=:equal)
-    fig = plot(p1, p2, layout=(1, 2), size=(1200, 500), plot_title=title_str)
+        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="EEC Coupling", aspect_ratio=:equal)
+    
+    # Adjusted size and added extra bottom margin for the colorbar space
+    fig = plot(p1, p2, layout=(1, 2), size=(1100, 500), plot_title=title_str, bottom_margin=10mm)
+    
     if save_path !== nothing
         savefig(fig, save_path)
     end
@@ -125,12 +139,14 @@ function plot_power_heatmaps_bottom_cbar(power_results; title_str="Band Power", 
     allv = vcat(vec(p1a), vec(p1g), vec(p2a), vec(p2g))
     vmin, vmax = minimum(allv), maximum(allv)
 
-    kw = (xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)", color=:viridis, aspect_ratio=:equal, clims=(vmin, vmax))
+    kw = (xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", color=:viridis, aspect_ratio=:equal, clims=(vmin, vmax))
     h1 = heatmap(m1, m2, p2a'; title="P2 Alpha Power", kw...)
     h2 = heatmap(m1, m2, p2g'; title="P2 Gamma Power", kw...)
     h3 = heatmap(m1, m2, p1a'; title="P1 Alpha Power", kw...)
     h4 = heatmap(m1, m2, p1g'; title="P1 Gamma Power", kw...)
-    fig = plot(h1, h2, h3, h4, layout=(2, 2), size=(1200, 1000), plot_title=title_str)
+    
+    fig = plot(h1, h2, h3, h4, layout=(2, 2), size=(1200, 1100), plot_title=title_str, bottom_margin=8mm)
+    
     if save_path !== nothing
         savefig(fig, save_path)
     end
@@ -141,11 +157,14 @@ end
 function plot_peix_heatmaps(peix_results; title_str="PEIX", save_path=nothing)
     m1, m2, p1 = _matrix_from_sweep(peix_results, :peix_P1)
     _, _, p2 = _matrix_from_sweep(peix_results, :peix_P2)
+    
     h1 = heatmap(m1, m2, p1', color=:jet, clims=(-1, 1), aspect_ratio=:equal,
-        xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)", title="PEIX for P1")
+        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="PEIX for P1")
     h2 = heatmap(m1, m2, p2', color=:jet, clims=(-1, 1), aspect_ratio=:equal,
-        xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)", title="PEIX for P2")
-    fig = plot(h1, h2, layout=(1, 2), size=(1200, 500), plot_title=title_str)
+        xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="PEIX for P2")
+        
+    fig = plot(h1, h2, layout=(1, 2), size=(1100, 500), plot_title=title_str, bottom_margin=8mm)
+    
     if save_path !== nothing
         savefig(fig, save_path)
     end
@@ -155,12 +174,13 @@ end
 
 function plot_frequency_heatmaps(freq_data; save_path=nothing)
     h1 = heatmap(freq_data.m1_values, freq_data.m2_values, freq_data.alpha_peaks',
-        color=:cool, clims=(6, 12), xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)",
+        color=:cool, clims=(6, 12), xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)",
         title="Peak Alpha Frequency in P1 (Hz)")
     h2 = heatmap(freq_data.m1_values, freq_data.m2_values, freq_data.gamma_peaks',
-        color=:hot, clims=(30, 50), xlabel="P1 drive (Hz)", ylabel="P2 drive (Hz)",
+        color=:hot, clims=(30, 50), xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)",
         title="Peak Gamma Frequency in P2 (Hz)")
-    fig = plot(h1, h2, layout=(1, 2), size=(1200, 500))
+        
+    fig = plot(h1, h2, layout=(1, 2), size=(1100, 500), bottom_margin=8mm)
     if save_path !== nothing
         savefig(fig, save_path)
     end

@@ -49,7 +49,7 @@ v0_p2 = 1.0
 [metadata]
 format = "TOML"
 note = "Complete run snapshot for LaNMM Julia pipeline"
-saved_at = "2026-02-23T16:45:10"
+saved_at = "2026-02-23T16:49:55"
 
 [nominal_run_for_diagnostics]
 mu_e1 = 270.0
