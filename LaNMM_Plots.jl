@@ -113,7 +113,7 @@ function plot_coupling_heatmaps(couplings; title_str="", save_path=nothing)
     p1 = heatmap(m1, m2, s2e', color=:seismic, clims=(-0.7, 0.7),
         xlabel="\\mu_{p1} (Hz)", ylabel="\\mu_{p2} (Hz)", title="SEC Coupling", 
         aspect_ratio=:equal, xlims=x_bounds, ylims=y_bounds, colorbar=false, widen=false)
-    scatter!(p1, [200], [90], color=:white, markersize=5, markerstrokecolor=:black, label="")
+    scatter!(p1, [200], [90], color=:white, markersize=5, markerstrokecolor=:white, label="")
     scatter!(p1, [270], [90], color=:black, markersize=5, markerstrokecolor=:black, label="")
 
     # Plot 2: EEC

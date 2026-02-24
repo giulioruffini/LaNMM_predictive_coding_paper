@@ -21,10 +21,10 @@ end
 """
 Public API (this file)
 ----------------------
-- `collect_run_parameters(intrinsic, job)`
-- `save_parameters_snapshot(path, intrinsic, job)`
+- `collect_run_parameters(intrinsic, job; driving)`
+- `save_parameters_snapshot(path, intrinsic, job; driving)`
 - `validate_configs(intrinsic, job)`
-- `run_sweep_job(intrinsic, job)`
+- `run_sweep_job(intrinsic, job; driving)`
 
 This file orchestrates a complete sweep workflow and should not define ODE or
 analysis equations directly.
@@ -89,10 +89,9 @@ Includes:
 - driving model assumptions used by the current engine
 - solver and simulation settings
 """
-function collect_run_parameters(intrinsic::IntrinsicConfig, job::JobConfig)
+function collect_run_parameters(intrinsic::IntrinsicConfig, job::JobConfig; driving::DrivingConfig=get_default_driving_model())
     col = get_column_parameters(condition=intrinsic.condition)
     a_vals, A_vals, C_vals = build_synapse_parameter_arrays(col)
-    driving = get_default_driving_model()
 
     return Dict(
         "metadata" => Dict(
@@ -144,8 +143,8 @@ function collect_run_parameters(intrinsic::IntrinsicConfig, job::JobConfig)
     )
 end
 
-function save_parameters_snapshot(path::AbstractString, intrinsic::IntrinsicConfig, job::JobConfig)
-    params = collect_run_parameters(intrinsic, job)
+function save_parameters_snapshot(path::AbstractString, intrinsic::IntrinsicConfig, job::JobConfig; driving::DrivingConfig=get_default_driving_model())
+    params = collect_run_parameters(intrinsic, job; driving=driving)
     open(path, "w") do io
         TOML.print(io, _to_toml_value(params); sorted=true)
     end
@@ -222,7 +221,7 @@ Responsibilities:
 - coupling/power/PEIX/frequency analyses
 - figure and results serialization
 """
-function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig)
+function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::DrivingConfig=get_default_driving_model())
     validate_configs(intrinsic, job)
 
     job_title = job.job_title
@@ -231,13 +230,14 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig)
     mkpath(output_dir)
 
     println("Saving parameters to $output_dir/parameters.txt")
-    save_parameters_snapshot(joinpath(output_dir, "parameters.txt"), intrinsic, job)
+    save_parameters_snapshot(joinpath(output_dir, "parameters.txt"), intrinsic, job; driving=driving)
 
     nominal = run_unified_simulation(
         intrinsic,
         job;
         mu_e1=270.0,
-        mu_e2=90.0
+        mu_e2=90.0,
+        driving=driving
     )
     plot_sim_results(nominal; save_dir=output_dir, xlims=(5, 10))
 
@@ -257,7 +257,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig)
 
     Threads.@threads for idx in eachindex(pairs)
         m1, m2 = pairs[idx]
-        sim = run_unified_simulation(intrinsic, job; mu_e1=m1, mu_e2=m2)
+        sim = run_unified_simulation(intrinsic, job; mu_e1=m1, mu_e2=m2, driving=driving)
 
         # Compute all sweep outputs on-the-fly, then drop `sim` so
         # time-series can be garbage collected.
