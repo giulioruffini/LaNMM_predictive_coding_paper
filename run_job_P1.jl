@@ -21,7 +21,7 @@ const job_params = JobConfig(
     job_title="julia_lanmm_sweep",
     mu_p1_values=collect(50.0:5.0:400.0),
     mu_p2_values=collect(50.0:5.0:400.0),
-    tmax=303.0,   # change to 300.0 for production sweeps
+    tmax=603.0,   # change to 300.0 for production sweeps
     dt=0.001,
     discard=3.0,
     alpha_band=(8.0, 12.0),
@@ -29,7 +29,24 @@ const job_params = JobConfig(
     quiet_progress=false # true => fewer progress updates
 )
 
+# P1 multiscale, P2/PV constant
+const driving_params = DrivingConfig(
+    e1=MultiscaleDrivingConfig(
+        mode=:multiscale,
+        seed_offset=0,
+        slow_std=400.0,
+        slow_alpha=0.99,
+        fast_std=5.0,
+        fast_cutoff=100.0,
+        floor_val=1e-4
+    ),
+    e2=ConstantDrivingConfig(mode=:constant, baseline=0.0),
+    pv=ConstantDrivingConfig(mode=:constant, baseline=0.0),
+    seed=42,
+    nonnegative_clipping=true
+)
+
 # ==============================================================================
 # 2. EXECUTE
 # ==============================================================================
-@time run_sweep_job(intrinsic_params, job_params)
+@time run_sweep_job(intrinsic_params, job_params; driving=driving_params)

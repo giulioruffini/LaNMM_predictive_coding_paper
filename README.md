@@ -22,6 +22,100 @@ The LaNMM is also used in https://www.biorxiv.org/content/10.1101/2025.03.26.645
 
 (and probably more to follow)
 
+## Install Julia (macOS / Windows / Linux)
+
+Recommended method on all platforms: `juliaup` (official Julia installer/version manager).
+
+### macOS
+
+Install:
+
+```bash
+curl -fsSL https://install.julialang.org | sh
+```
+
+Restart terminal, then verify:
+
+```bash
+julia --version
+```
+
+### Linux
+
+Install:
+
+```bash
+curl -fsSL https://install.julialang.org | sh
+```
+
+Restart terminal, then verify:
+
+```bash
+julia --version
+```
+
+### Windows
+
+Option A (PowerShell):
+
+```powershell
+winget install --id JuliaLang.Juliaup -e
+```
+
+Option B: install Juliaup from Microsoft Store (`Julia` / `Juliaup`).
+
+Then open a new terminal (PowerShell/Windows Terminal) and verify:
+
+```powershell
+julia --version
+```
+
+If `julia` is not found, close and reopen terminal/session after install.
+
+## Run the Julia implementation
+
+From the repository root:
+
+```bash
+cd /path/to/LaNMM_predictive_coding_paper
+```
+
+Run with multithreading:
+
+```bash
+julia --threads auto run_job_P1.jl
+```
+
+Alternative driving presets:
+
+```bash
+julia --threads auto run_job_P2.jl
+julia --threads auto run_job_PV.jl
+```
+
+### What each script does
+
+- `run_job_P1.jl`: multiscale driving on P1, constant on P2 and PV.
+- `run_job_P2.jl`: multiscale driving on P2, constant on P1 and PV.
+- `run_job_PV.jl`: multiscale driving on PV, constant on P1 and P2.
+
+Each run writes a timestamped output folder with:
+
+- `parameters.txt` (full run metadata/config snapshot)
+- `couplings.png`, `power.png`, `peix.png`, `frequency_heatmaps.png`
+- `inputs.png`, `v.png`, `u_external.png`, `psd.png`
+- `sweep_results.jls`, `analysis_results.jls`
+
+## First-run notes and troubleshooting
+
+- First run can be slower because Julia precompiles packages.
+- If `julia` is not found after install, restart terminal and check `julia --version`.
+- For long/high-resolution sweeps, reduce memory/runtime by adjusting in `run_job_*.jl`:
+  - `mu_p1_values`, `mu_p2_values` (grid size)
+  - `tmax`
+  - `dt`
+- Output directories from sweeps are ignored by git (`.gitignore`), so generated plots/data do not pollute commits.
+
 ## Julia workflow (parity with Python plots)
 
 The Julia code is split into:
