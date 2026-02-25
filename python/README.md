@@ -11,3 +11,13 @@ Main files:
 
 Note: this path is maintained mainly for reproducibility/comparison with the
 Julia implementation in `../julia/`.
+
+Install dependencies with:
+
+```bash
+pip install -r python/requirements.txt
+```
+
+Detailed usage guide:
+
+- `../REAME_Python_implmentation.md`
