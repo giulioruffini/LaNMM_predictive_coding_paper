@@ -1,9 +1,9 @@
-# Readme Julia Implementation
+# Julia Implementation README
 
 This document describes the Julia implementation architecture, file responsibilities,
 data contracts, and execution flow for the LaNMM pipeline.
 
-All file paths below are relative to the `julia/` folder.
+All file paths below are relative to the `julia/` folder unless noted.
 
 ## Architecture Overview
 
@@ -125,6 +125,12 @@ Each `run_job_*.jl` file should remain simple:
 2. define `intrinsic_params::IntrinsicConfig`
 3. define `job_params::JobConfig`
 4. call `run_sweep_job(intrinsic_params, job_params; driving=driving_params)`
+
+Run from repository root:
+
+```bash
+julia --threads auto julia/run_job_P1.jl
+```
 
 ## Output Artifacts per Run
 

@@ -222,6 +222,7 @@ Responsibilities:
 - figure and results serialization
 """
 function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::DrivingConfig=get_default_driving_model())
+    # Fail early if user configuration is inconsistent.
     validate_configs(intrinsic, job)
 
     job_title = job.job_title
@@ -232,6 +233,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::Driv
     println("Saving parameters to $output_dir/parameters.txt")
     save_parameters_snapshot(joinpath(output_dir, "parameters.txt"), intrinsic, job; driving=driving)
 
+    # Nominal reference run (single point) generates quick diagnostic traces.
     nominal = run_unified_simulation(
         intrinsic,
         job;
@@ -248,6 +250,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::Driv
     update_every = quiet_progress ? max(1, total_pairs ÷ 10) : max(1, total_pairs ÷ 200)
 
     println("Running sweep for $(total_pairs) parameter pairs with $(Threads.nthreads()) threads...")
+    # Flatten 2D grid to one vector so each thread can process independent jobs.
     pairs = vec([(m1, m2) for m1 in m1_vals, m2 in m2_vals])
     sweep_results = Dict{Tuple{Float64,Float64},SweepMetrics}()
     done_counter = Threads.Atomic{Int}(0)
@@ -287,6 +290,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::Driv
             gamma_peak_hz=gamma_peak
         )
 
+        # Dict writes are not thread-safe, so only this tiny section is locked.
         lock(results_lock) do
             sweep_results[(m1, m2)] = metrics
         end

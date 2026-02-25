@@ -11,6 +11,7 @@ https://www.sciencedirect.com/science/article/pii/S105381192300085X?via%3Dihub
 - `julia/`: current Julia implementation (engine, analysis, plots, sweep, run scripts).
 - `python/`: legacy/original Python implementation (`lanmmv11` stack).
 - `notebooks/`: exploratory notebooks and figure-building workflows.
+- `julia_lanmm_sweep_*/`: generated sweep artifacts currently tracked in repo history.
 
 ## Quick start (2 minutes)
 
@@ -80,4 +81,5 @@ Each run writes a timestamped folder containing:
 
 - First run is slower due to Julia package precompilation.
 - For faster tests, reduce sweep ranges and `tmax` in `julia/run_job_*.jl`.
-- Generated output folders are ignored by `.gitignore`.
+- Sweep output folders are currently versioned; very large `.jls` files can hit
+  GitHub limits, so prefer archiving externally or using Git LFS for big runs.

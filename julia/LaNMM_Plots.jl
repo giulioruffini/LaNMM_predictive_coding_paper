@@ -26,6 +26,7 @@ default(
 )
 
 function _matrix_from_sweep(dict_like, field)
+    # Convert Dict[(mu_p1, mu_p2)] -> dense matrix for heatmap plotting.
     m1_vals = sort(unique(first(k) for k in keys(dict_like)))
     m2_vals = sort(unique(last(k) for k in keys(dict_like)))
     z = fill(NaN, length(m1_vals), length(m2_vals))
@@ -36,6 +37,7 @@ function _matrix_from_sweep(dict_like, field)
 end
 
 function plot_sim_results(result::SimulationResult; save_dir::Union{Nothing,String}=nothing, xlims=nothing)
+    # Guard against occasional length mismatches from failed/early solves.
     n = minimum((
         length(result.t), length(result.e1_array), length(result.e2_array), length(result.pv_array),
         length(result.vP1), length(result.vP2), length(result.vPV),
@@ -123,7 +125,7 @@ function plot_coupling_heatmaps(couplings; title_str="", save_path=nothing)
     scatter!(p2, [200], [90], color=:white, markersize=5, markerstrokecolor=:white, label="")
     scatter!(p2, [270], [90], color=:black, markersize=5, markerstrokecolor=:black, label="")
 
-    # --- The "Manual Horizontal Colorbar" Hack ---
+    # Manual horizontal colorbar so both top heatmaps keep matching geometry.
     cb_x = range(-0.7, 0.7, length=200)
     cb_y = [0, 1]
     cb_data = repeat(cb_x', 2, 1)
@@ -135,22 +137,12 @@ function plot_coupling_heatmaps(couplings; title_str="", save_path=nothing)
         xlabel="Correlation Coefficient",
         margin=0mm, widen=false)
 
-    # --- Layout Magic ---
-    # Force the top row to take exactly 85% of the total vertical space.
-    # Make the colorbar span 60% of the horizontal space to balance the squares.
-   
-    # We added '0.03h' to explicitly force the colorbar to only be 3% of the total height
+    # Layout: top row is heatmaps, second row is centered colorbar.
     l = @layout [
         grid(1, 2){0.85h}
         _ a{0.6w, 0.1h} _
     ]
-    
-  
-        # MATH FIX: 
-    # Changed total height from 550 to 480.
-    # 480 pixels total * 0.85 (layout height) = 408 pixels for the top row.
-    # Now the bounding box is 400x408 (basically a perfect square).
-    # Zero vertical slack = the title snaps directly onto the top axis spine!
+
     plot_kwargs = title_str == "" ? 
         (; layout=l, size=(800, 480), bottom_margin=5mm) :
         (; layout=l, size=(800, 480), bottom_margin=5mm, plot_title=title_str)

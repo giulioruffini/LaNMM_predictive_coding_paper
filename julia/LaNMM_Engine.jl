@@ -181,10 +181,13 @@ function run_unified_simulation(
     mu_pv::Float64=0.0,
     driving::DrivingConfig=get_default_driving_model()
 )
+    # Build the simulation clock first; all generated drives are sampled on this grid.
     t_array = collect(0:job.dt:job.tmax)
     fs = 1.0 / job.dt
     a_vals, A_vals, C_vals = build_intrinsic_params(condition=intrinsic.condition)
 
+    # Each population drive is generated independently from the selected mode
+    # (constant / AM / multiscale), then optional clipping enforces nonnegative rates.
     e1_array = generate_drive_signal(t_array, mu_e1, driving.e1; fs=fs, seed=driving.seed)
     e2_array = generate_drive_signal(t_array, mu_e2, driving.e2; fs=fs, seed=driving.seed + 1)
     pv_array = generate_drive_signal(t_array, mu_pv, driving.pv; fs=fs, seed=driving.seed + 2)
@@ -208,6 +211,7 @@ function run_unified_simulation(
         pv_interp=LinearInterpolation(pv_array, t_array)
     )
 
+    # 14 second-order synapses -> 28 ODE states.
     u0 = zeros(Float64, 28)
     prob = ODEProblem(lanmm_ode!, u0, (0.0, job.tmax), p)
     sol = solve(prob, Tsit5(), saveat=job.dt, reltol=1e-8, abstol=1e-8, maxiters=10^8)
@@ -226,6 +230,7 @@ function run_unified_simulation(
     t_out = sol.t[idx_start:end]
     n = length(t_out)
 
+    # Convert vector-of-state-vectors output to a dense matrix for fast slicing.
     u_mat = Matrix{Float64}(undef, n, 28)
     for (k, uk) in enumerate(sol.u[idx_start:end])
         @inbounds u_mat[k, :] = uk

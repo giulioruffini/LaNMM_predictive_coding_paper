@@ -77,6 +77,7 @@ end
 Analyze S2E/E2E coupling over a sweep dictionary keyed by `(mu_p1, mu_p2)`.
 """
 function analyze_sweep_couplings(sweep_results; alpha_band=(8.0, 12.0), gamma_band=(30.0, 50.0))
+    # Snapshot keys once so threaded loop has deterministic indexable work.
     keys_vec = collect(keys(sweep_results))
     vals = Vector{NamedTuple{(:r_s2e, :r_e2e),Tuple{Float64,Float64}}}(undef, length(keys_vec))
 
@@ -87,6 +88,7 @@ function analyze_sweep_couplings(sweep_results; alpha_band=(8.0, 12.0), gamma_ba
         vals[i] = (r_s2e=r_s2e, r_e2e=r_e2e)
     end
 
+    # Reconstruct dictionary only after all threads finished writing `vals`.
     return Dict(keys_vec[i] => vals[i] for i in eachindex(keys_vec))
 end
 

@@ -8,3 +8,6 @@ Main files:
 - `lanmmv11.py`
 - `lanmm_analyzer.py`
 - `lanmm_helpers.py`
+
+Note: this path is maintained mainly for reproducibility/comparison with the
+Julia implementation in `../julia/`.
