@@ -10,7 +10,7 @@ https://www.sciencedirect.com/science/article/pii/S105381192300085X?via%3Dihub
 
 - `julia/`: current Julia implementation (engine, analysis, plots, sweep, run scripts).
 - `python/`: legacy/original Python implementation (`lanmmv11` stack).
-- notebooks at root are exploratory and figure-specific.
+- `notebooks/`: exploratory notebooks and figure-building workflows.
 
 ## Quick start (2 minutes)
 
