@@ -6,8 +6,8 @@ include("LaNMM_Plots.jl")
 include("LaNMM_Sweep.jl")
 
 # ==============================================================================
-# 1. USER CONFIGURATION (PUBLIC CONTRACT)
-# Set typed configs here, then execute with `run_sweep_job(...)`.
+# 1. USER CONFIGURATION (START HERE)
+# Same structure as `run_job_P1.jl`, but with P2 as multiscale target.
 # ==============================================================================
 const intrinsic_params = IntrinsicConfig(
     condition="healthy",
@@ -18,20 +18,21 @@ const intrinsic_params = IntrinsicConfig(
 )
 
 const job_params = JobConfig(
-    job_title="julia_lanmm_sweep",
+    job_title="julia_lanmm_sweep_P2",
     mu_p1_values=collect(50.0:5.0:400.0),
     mu_p2_values=collect(50.0:5.0:400.0),
-    tmax=603.0,   # change to 300.0 for production sweeps
+    tmax=603.0,
     dt=0.001,
     discard=3.0,
     alpha_band=(8.0, 12.0),
     gamma_band=(30.0, 50.0),
-    quiet_progress=false # true => fewer progress updates
+    quiet_progress=false
 )
 
-# P1 multiscale, P2/PV constant
+# P2 multiscale, P1/PV constant
 const driving_params = DrivingConfig(
-    e1=MultiscaleDrivingConfig(
+    e1=ConstantDrivingConfig(mode=:constant, baseline=0.0),
+    e2=MultiscaleDrivingConfig(
         mode=:multiscale,
         seed_offset=0,
         slow_std=400.0,
@@ -40,7 +41,6 @@ const driving_params = DrivingConfig(
         fast_cutoff=100.0,
         floor_val=1e-4
     ),
-    e2=ConstantDrivingConfig(mode=:constant, baseline=0.0),
     pv=ConstantDrivingConfig(mode=:constant, baseline=0.0),
     seed=42,
     nonnegative_clipping=true

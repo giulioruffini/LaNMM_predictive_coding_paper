@@ -1,160 +1,83 @@
 # LaNMM_predictive_coding_paper
-Code associated with CFC plots in Ruffini et al 2025 https://www.biorxiv.org/content/10.1101/2025.03.19.644090v3
-(Cross-Frequency Coupling as a Neural Substrate for Prediction Error Evaluation: A Laminar Neural Mass Modeling Approach, 2025)
 
-The LaNMM model is as the one described in https://www.sciencedirect.com/science/article/pii/S105381192300085X?via%3Dihub 
-(A physical neural mass model framework for the analysis of oscillatory generators from laminar electrophysiological recordings, Sanchez-Todo et al., 2023)
+Code associated with CFC plots in Ruffini et al. 2025:
+https://www.biorxiv.org/content/10.1101/2025.03.19.644090v3
 
-Notes: 
-The LaNMM is also used  https://www.biorxiv.org/content/10.1101/2024.12.15.628565v4
-(Restoring Oscillatory Dynamics in Alzheimer’s Disease: A Laminar Whole-Brain Model of Serotonergic Psychedelic Effects, 2024)
-In the code, we chose to modify the connectivity constants ($C$) rather than the global synaptic gain ($A$). 
-This was done to achieve specificity in a simple manner (a hack, so to speak): modifying $A$ would affect 
-all excitatory synapses globally, forcing us to rewrite the code for more analytic control of the variable at all synapses, 
-whereas modifying $C$ allowed us to selectively target the specific glutamatergic inputs to the P1 population as intended. 
-We have added comments to the code repository to explicitly state this equivalence: scaling $C$ 
-for specific synapses is our implementation method for increasing the effective synaptic gain for those specific pathways.
+LaNMM model reference:
+https://www.sciencedirect.com/science/article/pii/S105381192300085X?via%3Dihub
 
+## Repository layout
 
+- `julia/`: current Julia implementation (engine, analysis, plots, sweep, run scripts).
+- `python/`: legacy/original Python implementation (`lanmmv11` stack).
+- notebooks at root are exploratory and figure-specific.
 
-The LaNMM is also used in https://www.biorxiv.org/content/10.1101/2025.03.26.645407v1
-(Fast Interneuron Dysfunction in Laminar Neural Mass Model Reproduces Alzheimer’s Oscillatory Biomarkers, 2025)
+## Quick start (2 minutes)
 
-(and probably more to follow)
+```bash
+cd /path/to/LaNMM_predictive_coding_paper
+julia --version
+julia --threads auto julia/run_job_P1.jl
+```
 
 ## Install Julia (macOS / Windows / Linux)
 
-Recommended method on all platforms: `juliaup` (official Julia installer/version manager).
+Recommended on all platforms: `juliaup` (official installer + version manager).
 
-### macOS
-
-Install:
+### macOS / Linux
 
 ```bash
 curl -fsSL https://install.julialang.org | sh
-```
-
-Restart terminal, then verify:
-
-```bash
 julia --version
 ```
 
-### Linux
-
-Install:
-
-```bash
-curl -fsSL https://install.julialang.org | sh
-```
-
-Restart terminal, then verify:
-
-```bash
-julia --version
-```
-
-### Windows
-
-Option A (PowerShell):
+### Windows (PowerShell)
 
 ```powershell
 winget install --id JuliaLang.Juliaup -e
-```
-
-Option B: install Juliaup from Microsoft Store (`Julia` / `Juliaup`).
-
-Then open a new terminal (PowerShell/Windows Terminal) and verify:
-
-```powershell
 julia --version
 ```
 
-If `julia` is not found, close and reopen terminal/session after install.
+If `julia` is not found, restart your terminal/session.
 
 ## Run the Julia implementation
 
 From the repository root:
 
 ```bash
-cd /path/to/LaNMM_predictive_coding_paper
+julia --threads auto julia/run_job_P1.jl
+julia --threads auto julia/run_job_P2.jl
+julia --threads auto julia/run_job_PV.jl
 ```
 
-Run with multithreading:
+- `julia/run_job_P1.jl`: multiscale driving on P1, constant on P2/PV.
+- `julia/run_job_P2.jl`: multiscale driving on P2, constant on P1/PV.
+- `julia/run_job_PV.jl`: multiscale driving on PV, constant on P1/P2.
 
-```bash
-julia --threads auto run_job_P1.jl
-```
+## Julia architecture
 
-Alternative driving presets:
+- `julia/LaNMM_Types.jl`: typed config/result contracts.
+- `julia/LaNMM_parameters.jl`: intrinsic constants and default driving model.
+- `julia/LaNMM_Engine.jl`: ODE and single-simulation runtime.
+- `julia/LaNMM_Analyzer.jl`: analysis metrics (SEC/EEC, power, PEIX, peaks).
+- `julia/LaNMM_Plots.jl`: plotting only.
+- `julia/LaNMM_Sweep.jl`: sweep orchestration, progress, saving.
 
-```bash
-julia --threads auto run_job_P2.jl
-julia --threads auto run_job_PV.jl
-```
-
-### What each script does
-
-- `run_job_P1.jl`: multiscale driving on P1, constant on P2 and PV.
-- `run_job_P2.jl`: multiscale driving on P2, constant on P1 and PV.
-- `run_job_PV.jl`: multiscale driving on PV, constant on P1 and P2.
-
-Each run writes a timestamped output folder with:
-
-- `parameters.txt` (full run metadata/config snapshot)
-- `couplings.png`, `power.png`, `peix.png`, `frequency_heatmaps.png`
-- `inputs.png`, `v.png`, `u_external.png`, `psd.png`
-- `sweep_results.jls`, `analysis_results.jls`
-
-## First-run notes and troubleshooting
-
-- First run can be slower because Julia precompiles packages.
-- If `julia` is not found after install, restart terminal and check `julia --version`.
-- For long/high-resolution sweeps, reduce memory/runtime by adjusting in `run_job_*.jl`:
-  - `mu_p1_values`, `mu_p2_values` (grid size)
-  - `tmax`
-  - `dt`
-- Output directories from sweeps are ignored by git (`.gitignore`), so generated plots/data do not pollute commits.
-
-## Julia workflow (parity with Python plots)
-
-The Julia code is split into:
-
-- `LaNMM_Types.jl`: typed configs and simulation result contract.
-- `LaNMM_parameters.jl`: intrinsic column constants + driving defaults.
-- `LaNMM_Engine.jl`: core ODE model + simulation (`run_unified_simulation`).
-- `LaNMM_Analyzer.jl`: analysis functions only (no plotting side effects).
-- `LaNMM_Plots.jl`: plotting functions only.
-- `LaNMM_Sweep.jl`: sweep orchestration/progress/output helpers.
-- `run_job.jl`: clean entry script to define typed parameters and execute.
-
-Default Julia driving setup:
-- `e1`: multiscale
-- `e2`: constant
-- `pv`: constant
-
-Run:
-
-`julia --threads auto run_job.jl`
-
-Detailed Julia architecture and API documentation:
+Full Julia-specific walkthrough:
 
 - `Readme_Julia_implemenation.md`
 
-Each run creates a timestamped output directory containing:
+## Outputs per run
 
-- `inputs.png`, `v.png`, `u_external.png`, `psd.png` (single-run diagnostics)
-- `couplings.png` (SEC/EEC heatmaps)
-- `power.png` (P1/P2 alpha/gamma band-power heatmaps)
-- `peix.png` (PEIX heatmaps)
-- `frequency_heatmaps.png` (alpha/gamma peak-frequency heatmaps)
-- `sweep_results.jls`, `analysis_results.jls`, and `parameters.txt`
+Each run writes a timestamped folder containing:
 
-### Python-to-Julia function mapping
+- `parameters.txt` (full reproducibility snapshot)
+- diagnostic plots (`inputs.png`, `v.png`, `u_external.png`, `psd.png`)
+- sweep plots (`couplings.png`, `power.png`, `peix.png`, `frequency_heatmaps.png`)
+- serialized data (`sweep_results.jls`, `analysis_results.jls`)
 
-- Python `run_unified_simulation` -> Julia `run_unified_simulation` (`LaNMM_Engine.jl`)
-- Python `plot_sim_results` -> Julia `plot_sim_results` (`LaNMM_Analyzer.jl`)
-- Python `analyze_sweep_couplings` / `plot_coupling_heatmaps` -> same names in Julia
-- Python `analyze_sweep_power` / `plot_power_heatmaps_bottom_cbar` -> same names in Julia
-- Python `sweep_peix` / `plot_peix_heatmaps` -> same names in Julia
-- Python `analyze_peak_frequencies` / `plot_frequency_heatmaps` -> same names in Julia
+## Notes
+
+- First run is slower due to Julia package precompilation.
+- For faster tests, reduce sweep ranges and `tmax` in `julia/run_job_*.jl`.
+- Generated output folders are ignored by `.gitignore`.

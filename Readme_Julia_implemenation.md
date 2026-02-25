@@ -3,6 +3,8 @@
 This document describes the Julia implementation architecture, file responsibilities,
 data contracts, and execution flow for the LaNMM pipeline.
 
+All file paths below are relative to the `julia/` folder.
+
 ## Architecture Overview
 
 The Julia code is organized by concern:
@@ -19,8 +21,8 @@ The Julia code is organized by concern:
   Plotting functions only.
 - `LaNMM_Sweep.jl`  
   Sweep orchestration, progress/ETA, metadata snapshot, persistence.
-- `run_job.jl`  
-  User-facing entry script: define configs, execute one run.
+- `run_job_P1.jl`, `run_job_P2.jl`, `run_job_PV.jl`  
+  User-facing entry scripts: define configs, execute one run.
 
 This separation keeps model equations, analysis logic, plotting, and job orchestration
 independent and easier to reason about.
@@ -115,14 +117,14 @@ This keeps visualization concerns decoupled from computation.
 - computes analysis products
 - saves plots and serialized outputs
 
-## Run Entry Script
+## Run Entry Scripts
 
-`run_job.jl` should remain simple:
+Each `run_job_*.jl` file should remain simple:
 
 1. include the Julia pipeline files
 2. define `intrinsic_params::IntrinsicConfig`
 3. define `job_params::JobConfig`
-4. call `run_sweep_job(intrinsic_params, job_params)`
+4. call `run_sweep_job(intrinsic_params, job_params; driving=driving_params)`
 
 ## Output Artifacts per Run
 
@@ -144,5 +146,5 @@ The timestamped output directory contains:
 - Add a metric -> `LaNMM_Analyzer.jl`
 - Add/modify figure style -> `LaNMM_Plots.jl`
 - Change batch workflow, progress, saving behavior -> `LaNMM_Sweep.jl`
-- Change run setup -> `run_job.jl`
+- Change run setup -> `run_job_P1.jl`, `run_job_P2.jl`, or `run_job_PV.jl`
 

@@ -251,6 +251,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::Driv
     pairs = vec([(m1, m2) for m1 in m1_vals, m2 in m2_vals])
     sweep_results = Dict{Tuple{Float64,Float64},SweepMetrics}()
     done_counter = Threads.Atomic{Int}(0)
+    # Locks are used only around shared writes/printing; all heavy math runs outside locks.
     results_lock = ReentrantLock()
     progress_lock = ReentrantLock()
     t0 = time()
@@ -290,6 +291,7 @@ function run_sweep_job(intrinsic::IntrinsicConfig, job::JobConfig; driving::Driv
             sweep_results[(m1, m2)] = metrics
         end
 
+        # Atomic counter keeps progress thread-safe with minimal contention.
         done_pairs = Threads.atomic_add!(done_counter, 1) + 1
         if done_pairs == 1 || done_pairs % update_every == 0 || done_pairs == total_pairs
             lock(progress_lock) do

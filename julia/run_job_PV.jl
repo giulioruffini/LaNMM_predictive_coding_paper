@@ -6,7 +6,8 @@ include("LaNMM_Plots.jl")
 include("LaNMM_Sweep.jl")
 
 # ==============================================================================
-# 1. USER CONFIGURATION
+# 1. USER CONFIGURATION (START HERE)
+# Same structure as `run_job_P1.jl`, but with PV as multiscale target.
 # ==============================================================================
 const intrinsic_params = IntrinsicConfig(
     condition="healthy",
@@ -17,7 +18,7 @@ const intrinsic_params = IntrinsicConfig(
 )
 
 const job_params = JobConfig(
-    job_title="julia_lanmm_sweep_P2",
+    job_title="julia_lanmm_sweep_PV",
     mu_p1_values=collect(50.0:5.0:400.0),
     mu_p2_values=collect(50.0:5.0:400.0),
     tmax=603.0,
@@ -28,10 +29,11 @@ const job_params = JobConfig(
     quiet_progress=false
 )
 
-# P2 multiscale, P1/PV constant
+# PV multiscale, P1/P2 constant
 const driving_params = DrivingConfig(
     e1=ConstantDrivingConfig(mode=:constant, baseline=0.0),
-    e2=MultiscaleDrivingConfig(
+    e2=ConstantDrivingConfig(mode=:constant, baseline=0.0),
+    pv=MultiscaleDrivingConfig(
         mode=:multiscale,
         seed_offset=0,
         slow_std=400.0,
@@ -40,7 +42,6 @@ const driving_params = DrivingConfig(
         fast_cutoff=100.0,
         floor_val=1e-4
     ),
-    pv=ConstantDrivingConfig(mode=:constant, baseline=0.0),
     seed=42,
     nonnegative_clipping=true
 )

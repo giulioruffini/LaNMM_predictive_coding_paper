@@ -1,3 +1,12 @@
-# Julia generated sweep outputs
-
+# macOS
 .DS_Store
+
+# Julia generated sweep outputs
+julia_lanmm_sweep_*/
+julia_lanmm_sweep_P1_*/
+julia_lanmm_sweep_P2_*/
+julia_lanmm_sweep_PV_*/
+mem_thread_test_*/
+redo_check_*/
+thread_test_*/
+sweep_results/
