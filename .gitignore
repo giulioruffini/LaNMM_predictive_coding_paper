@@ -1,6 +1,3 @@
 # Julia generated sweep outputs
-julia_lanmm_sweep_*/
-mem_thread_test_*/
-redo_check_*/
-thread_test_*/
-sweep_results/
+
+.DS_Store
